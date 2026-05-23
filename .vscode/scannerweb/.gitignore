@@ -1,0 +1,7 @@
+.env
+usuarios.json
+logs.txt
+__pycache__/
+*.pyc
+.vscode/
+input.html
