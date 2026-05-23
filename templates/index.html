@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>scanner de seguridad </title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+/* ── FINDINGS ── */
+.findings {
+  margin-top: 24px;
+  animation: aparecer 0.5s ease-out both;
+}
+
+.findings h2 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.finding-card {
+  margin-bottom: 12px;
+  padding: 16px;
+  border-left: 3px solid;
+  background: rgba(0, 229, 255, 0.03);
+  border-radius: 0 4px 4px 0;
+  transition: background 0.3s;
+}
+
+.finding-card:hover {
+  background: rgba(0, 229, 255, 0.06);
+}
+
+.severidad-critical { border-left-color: #ff2d6b; }
+.severidad-high     { border-left-color: #ff7c2d; }
+.severidad-medium   { border-left-color: #ffd12d; }
+.severidad-low      { border-left-color: #00e5ff; }
+
+.finding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.finding-titulo {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  color: #fff;
+}
+
+.finding-badge {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  text-transform: uppercase;
+}
+
+.severidad-critical .finding-badge { color: #ff2d6b; }
+.severidad-high     .finding-badge { color: #ff7c2d; }
+.severidad-medium   .finding-badge { color: #ffd12d; }
+.severidad-low      .finding-badge { color: #00e5ff; }
+
+.finding-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.finding-fix {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 10px 14px;
+  border: 1px solid rgba(0, 229, 255, 0.1);
+  border-radius: 2px;
+}
+
+.fix-label {
+  font-size: 10px;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 6px;
+  letter-spacing: 2px;
+}
+
+.finding-fix code {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--primary);
+  word-break: break-all;
+  line-height: 1.6;
+}
+    :root {
+      --primary: #00e5ff;
+      --accent: #ff2d6b;
+      --bg: #060a0f;
+      --surface: rgba(0, 229, 255, 0.04);
+      --border: rgba(0, 229, 255, 0.2);
+      --border-bright: rgba(0, 229, 255, 0.6);
+      --text: #c8f0ff;
+      --muted: rgba(0, 229, 255, 0.4);
+      --safe: #00ff88;
+      --vuln: #ff2d6b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Share Tech Mono', monospace;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── GRID BACKGROUND ── */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+      animation: gridPulse 4s ease-in-out infinite;
+    }
+
+    @keyframes gridPulse {
+      0%, 100% { opacity: 0.4; }
+      50%       { opacity: 0.8; }
+    }
+
+    /* ── CORNER GLOWS ── */
+    .glow-tl, .glow-br {
+      position: fixed;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      z-index: 0;
+      pointer-events: none;
+      filter: blur(80px);
+      opacity: 0.12;
+    }
+    .glow-tl { top: -100px; left: -100px; background: var(--primary); animation: breathe 6s ease-in-out infinite; }
+    .glow-br { bottom: -100px; right: -100px; background: var(--accent); animation: breathe 6s ease-in-out infinite reverse; }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0.08; transform: scale(1); }
+      50%       { opacity: 0.18; transform: scale(1.1); }
+    }
+
+    /* ── SCAN LINES ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* ── CONTAINER ── */
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 560px;
+      padding: 48px 40px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+      animation: containerIn 0.6s ease-out both;
+    }
+
+    @keyframes containerIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Corner accents */
+    .container::before, .container::after {
+      content: '';
+      position: absolute;
+      width: 10px; height: 10px;
+      border-color: var(--primary);
+      border-style: solid;
+    }
+    .container::before { top: 8px; left: 8px; border-width: 1px 0 0 1px; }
+    .container::after  { bottom: 8px; right: 8px; border-width: 0 1px 1px 0; }
+
+    /* ── HEADER ── */
+    .header {
+      margin-bottom: 36px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--accent);
+      border: 1px solid rgba(255, 45, 107, 0.4);
+      padding: 3px 10px;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    h1 span { color: var(--primary); }
+
+    .subtitulo {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 3px;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border-bright), transparent);
+    }
+    .divider span {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 2px;
+    }
+
+    /* ── INPUT ── */
+    .input-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .input-label {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 13px 16px;
+      background: rgba(0, 229, 255, 0.03);
+      border: 1px solid var(--border);
+      color: var(--primary);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.15), inset 0 0 10px rgba(0, 229, 255, 0.03);
+    }
+
+    input::placeholder { color: rgba(0, 229, 255, 0.2); }
+
+    /* ── BUTTON ── */
+    button {
+      width: 100%;
+      padding: 14px;
+      background: transparent;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      cursor: pointer;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+      transition: color 0.3s;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--primary);
+      transform: translateX(-101%);
+      transition: transform 0.3s ease;
+      z-index: 0;
+    }
+
+    button:hover::before { transform: translateX(0); }
+    button:hover { color: var(--bg); }
+    button span { position: relative; z-index: 1; }
+
+    /* ── RESULTADO ── */
+    .resultado {
+      margin-top: 24px;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      background: rgba(0, 229, 255, 0.04);
+      font-size: 13px;
+      color: var(--primary);
+      animation: aparecer 0.4s ease-out both;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+    }
+
+    .resultado::before {
+      content: '// ';
+      color: var(--accent);
+    }
+
+    /* ── HEADERS TABLE ── */
+    .headers {
+      margin-top: 24px;
+      animation: aparecer 0.5s ease-out both;
+    }
+
+    .headers h2 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      background: rgba(0, 229, 255, 0.06);
+      color: var(--muted);
+      text-align: left;
+      letter-spacing: 2px;
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 9px 12px;
+      border: 1px solid rgba(0, 229, 255, 0.08);
+      color: var(--text);
+    }
+
+    tr:hover td { background: rgba(0, 229, 255, 0.04); }
+
+    td:nth-child(2) {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+
+    .estado-seguro  { color: var(--safe) !important; }
+    .estado-vulnerable { color: var(--vuln) !important; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes aparecer {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .cursor {
+      color: var(--accent);
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ── FOOTER STATUS ── */
+    .status-bar {
+      margin-top: 28px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 2px;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--safe);
+      margin-right: 6px;
+      box-shadow: 0 0 6px var(--safe);
+      animation: blink 2s infinite;
+      vertical-align: middle;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="grid-bg"></div>
+  <div class="glow-tl"></div>
+  <div class="glow-br"></div>
+
+  <div class="container">
+
+    <div class="header">
+      <div class="badge">▸ security tool v1.0</div>
+      <h1>WEB<span>SCAN</span><span class="cursor">_</span></h1>
+      <p class="subtitulo">[ VULNERABILITY ANALYSIS ENGINE ]</p>
+    </div>
+
+    <div class="divider"><span>TARGET</span></div>
+
+    <form action="/analizar" method="POST">
+      <label class="input-label">// URL OBJETIVO</label>
+      <div class="input-wrap">
+        <input type="text" name="url" placeholder="https://objetivo.com" autocomplete="off">
+      </div>
+      <button type="submit"><span>▸ INICIAR ANÁLISIS</span></button>
+    </form>
+
+    {% if resultado %}
+      <div class="resultado">{{ resultado }}</div>
+    {% endif %}
+
+    {% if headers_resultado %}
+    <!-- FINDINGS / RECOMENDACIONES -->
+{% set tiene_findings = [] %}
+{% for header, info in headers_resultado.items() %}
+  {% if info.estado == 'vulnerable' %}
+    {% set _ = tiene_findings.append(1) %}
+  {% endif %}
+{% endfor %}
+
+{% if tiene_findings %}
+<div class="findings">
+  <div class="divider" style="margin-top:24px;"><span>FINDINGS</span></div>
+  <h2>▸ RECOMENDACIONES DE REMEDIACIÓN</h2>
+
+  {% for header, info in headers_resultado.items() %}
+    {% if info.estado == 'vulnerable' %}
+    <div class="finding-card severidad-{{ info.severidad | lower }}">
+      <div class="finding-header">
+        <span class="finding-titulo">{{ header }}</span>
+        <span class="finding-badge">{{ info.severidad }}</span>
+      </div>
+      <p class="finding-desc">{{ info.descripcion }}</p>
+      <div class="finding-fix">
+        <span class="fix-label">// FIX</span>
+        <code>{{ info.recomendacion }}</code>
+      </div>
+    </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+      <div class="headers">
+        <div class="divider" style="margin-top:24px;"><span>HEADERS</span></div>
+        <h2>▸ SECURITY HEADERS REPORT</h2>
+        <table>
+          <tr>
+            <th>Header</th>
+            <th>Estado</th>
+            <th>Descripción</th>
+          </tr>
+          {% for header, info in headers_resultado.items() %}
+          <tr>
+            <td>{{ header }}</td>
+            <td class="estado-{{ info.estado }}">{{ info.estado }}</td>
+            <td>{{ info.descripcion }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    {% endif %}
+
+    <div class="status-bar">
+      <span><span class="status-dot"></span>SISTEMA ACTIVO</span>
+      <span id="clock"></span>
+    </div>
+
+  </div>
+
+  <script>
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent =
+        now.toLocaleTimeString('es-PA', { hour12: false });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    const grid = document.querySelector('.grid-bg');
+    document.addEventListener('mousemove', (e) => {
+      const x = (e.clientX / window.innerWidth) * 100;
+      const y = (e.clientY / window.innerHeight) * 100;
+      grid.style.maskImage = `radial-gradient(ellipse 70% 70% at ${x}% ${y}%, black 40%, transparent 100%)`;
+    });
+  </script>
+
+</body>
+</html>
